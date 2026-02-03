@@ -1,0 +1,41 @@
+name: AI Daily News
+
+on:
+  schedule:
+    # 每天 UTC 00:00 运行（北京时间 08:00）
+    - cron: '0 0 * * *'
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  fetch-and-send:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests feedparser
+
+    - name: Run AI news fetcher
+      env:
+        WXPUSHER_TOKEN: ${{ secrets.WXPUSHER_TOKEN }}
+        WXPUSHER_UID: ${{ secrets.WXPUSHER_UID }}
+        ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+      run: |
+        python scripts/fetch_news.py
+
+    - name: Commit sent articles
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add data/sent_articles.json || true
+        git diff --quiet && git diff --staged --quiet || git commit -m "Update sent articles" || true
+        git push || true
